@@ -7,6 +7,7 @@ namespace MakingWaves\ezDictionary;
 class Dictionary
 {
     const OPERATOR_NAME = 'dictionary';
+    const EXTENSION_NAME = 'eZDictionary';
     private $operators;
 
     /**
@@ -17,19 +18,70 @@ class Dictionary
         $this->operators = array( self::OPERATOR_NAME );
     }
 
-    private function getWordNodes()
+    /**
+     * Method generates an array of dictionary items basing on given array of nodes
+     * @param array $nodes
+     * @return array
+     */
+    private function generateDictionary( $nodes )
     {
-        
+        $dictionary = array();
+        $title_attr = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'WordAttribute' );
+        $desc_attr = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'DescriptionAttribute' );
+
+        if ( empty( $nodes ) )
+        {
+            $this->printError( 'There are no nodes which matches the dictionary settings. Please check the extension configuration (ezdictionary.ini).' );
+            return $dictionary;
+        }
+
+        foreach ( $nodes as $node )
+        {
+            $data_map = $node->dataMap();
+            if ( isset( $data_map[$title_attr] ) && isset( $data_map[$desc_attr] ) )
+            {
+                $dictionary[$data_map[$title_attr]->DataText] = $data_map[$desc_attr]->DataText;
+            }
+            else
+            {
+                $this->printError( 'Node ' . $node->attribute( 'node_id' ) . ' (class "' . $node->attribute( 'class_identifier' )
+                                   . '") doesn\'t have at least one of following attributes: "' . $title_attr . '", "' . $desc_attr . '"' );
+            }
+        }
+
+        return $dictionary;
     }
 
-    public function modify( $tpl, $operator_name, $operatorParameters, $rootNamespace, $currentNamespace, &$operator_value, $namedParameters )
+    /**
+     * Method fetches the nodes by names defined in TemplateOperator[Classes] which are children of TemplateOperator[ParentNodes]
+     * @return array
+     */
+    private function getWordNodes()
+    {
+        $parents = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'ParentNodes' );
+        $nodes = \eZContentObjectTreeNode::subTreeByNodeID( array(
+            'ClassFilterType' => 'include',
+            'ClassFilterArray' => \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'Classes' )
+        ), $parents );
+
+        return $nodes;
+    }
+
+    public function modify( $tpl, $operator_name, $operator_parameters, $root_namespace, $current_namespace, &$operator_value, $named_parameters )
     {
         if ( $operator_name !== self::OPERATOR_NAME )
         {
             return false;
         }
 
-        var_dump( $operator_value );
+        $dictionary = $this->generateDictionary( $this->getWordNodes() );
+        foreach( $dictionary as $word => $description )
+        {
+            
+        }
+        print '<pre>';
+        print_r($dictionary);
+        print '</pre>';
         die;
     }
 
@@ -66,5 +118,14 @@ class Dictionary
     public function operatorList()
     {
         return $this->operators;
+    }
+
+    /**
+     * Function prints the error text in the eZDebug.
+     * @param string $text
+     */
+    private function printError( $text )
+    {
+        \eZDebug::writeError( self::EXTENSION_NAME . ': ' . $text );
     }
 }
