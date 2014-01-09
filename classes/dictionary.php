@@ -59,30 +59,29 @@ class Dictionary
     private function getWordNodes()
     {
         $parents = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'ParentNodes' );
-        $nodes = \eZContentObjectTreeNode::subTreeByNodeID( array(
+        return \eZContentObjectTreeNode::subTreeByNodeID( array(
             'ClassFilterType' => 'include',
             'ClassFilterArray' => \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'Classes' )
         ), $parents );
-
-        return $nodes;
     }
 
     public function modify( $tpl, $operator_name, $operator_parameters, $root_namespace, $current_namespace, &$operator_value, $named_parameters )
     {
         if ( $operator_name !== self::OPERATOR_NAME )
         {
+            $this->printError( 'Template operator "' . $operator_name . '" is not supported.' );
             return false;
         }
 
         $dictionary = $this->generateDictionary( $this->getWordNodes() );
         foreach( $dictionary as $word => $description )
         {
-            
+            $dict_tpl = \eZTemplate::factory();
+            $dict_tpl->setVariable( 'dict_desc', $description );
+            $case_sensitive = $named_parameters['case_sensitive'] === true ? '' : 'i';
+
+            $operator_value = preg_replace( '/(\b' . $word . '\b)/' . $case_sensitive, $tpl->fetch( 'design:ezdictionary/tooltip.tpl' ), $operator_value );
         }
-        print '<pre>';
-        print_r($dictionary);
-        print '</pre>';
-        die;
     }
 
     /**
@@ -93,10 +92,10 @@ class Dictionary
     {
         return array(
             self::OPERATOR_NAME => array(
-                'display_string' => array(
-                    'type' => 'string',
-                    'required' => true,
-                    'default' => ''
+                'case_sensitive' => array(
+                    'type' => 'boolean',
+                    'required' => false,
+                    'default' => \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'CaseSensitive' ) === 'true'
                  )
              )
         );
