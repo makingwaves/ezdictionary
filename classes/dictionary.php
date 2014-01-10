@@ -159,7 +159,7 @@ class Dictionary
             $dict_tpl->setVariable( 'dict_desc', $description );
 
             $case_sensitive = $named_parameters['case_sensitive'] === true ? '' : 'i';
-            $pattern = '/(\b' . $word . '\b)/' . $case_sensitive;
+            $pattern = '/(\b' . $word . '\b)(?=[^<>]*(<|$))/' . $case_sensitive;
 
             if ( preg_match( $pattern, $operator_value ) )
             {
