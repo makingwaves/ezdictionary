@@ -40,7 +40,7 @@ class Dictionary
             $data_map = $node->dataMap();
             if ( isset( $data_map[$title_attr] ) && isset( $data_map[$desc_attr] ) )
             {
-                $dictionary[$data_map[$title_attr]->DataText] = $data_map[$desc_attr]->DataText;
+                $dictionary[$data_map[$title_attr]->attribute( 'content' )] = $data_map[$desc_attr]->attribute( 'content' );
             }
             else
             {
@@ -59,10 +59,11 @@ class Dictionary
     private function getWordNodes()
     {
         $parents = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'ParentNodes' );
-        return \eZContentObjectTreeNode::subTreeByNodeID( array(
-            'ClassFilterType' => 'include',
-            'ClassFilterArray' => \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'Classes' )
-        ), $parents );
+        return \eZFunctionHandler::execute( 'content', 'tree', array(
+            'class_filter_type' => 'include',
+            'class_filter_array' => \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'Classes' ),
+            'parent_node_id' => $parents
+        ) );
     }
 
     public function modify( $tpl, $operator_name, $operator_parameters, $root_namespace, $current_namespace, &$operator_value, $named_parameters )
@@ -78,9 +79,14 @@ class Dictionary
         {
             $dict_tpl = \eZTemplate::factory();
             $dict_tpl->setVariable( 'dict_desc', $description );
-            $case_sensitive = $named_parameters['case_sensitive'] === true ? '' : 'i';
 
-            $operator_value = preg_replace( '/(\b' . $word . '\b)/' . $case_sensitive, $tpl->fetch( 'design:ezdictionary/tooltip.tpl' ), $operator_value );
+            $case_sensitive = $named_parameters['case_sensitive'] === true ? '' : 'i';
+            $pattern = '/(\b' . $word . '\b)/' . $case_sensitive;
+
+            if ( preg_match( $pattern, $operator_value ) )
+            {
+                $operator_value = preg_replace( $pattern, $tpl->fetch( 'design:ezdictionary/tooltip.tpl' ), $operator_value );
+            }
         }
     }
 
