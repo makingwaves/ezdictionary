@@ -65,7 +65,10 @@ class Dictionary
             if ( !isset( $data_map[$attribs['keyword']] ) )
             {
                 $this->printError( 'Class "' . $node->attribute( 'class_identifier' ) . '" doesn\'t contain attribute "'
-                                   . $attribs['keyword'] . '" defined in ezdictionary.ini file. Using name attribute.', 'notice' );
+                                   . $attribs['keyword'] . '" defined in ezdictionary.ini file. Keyword "' . $values['keyword'] . '" won\'t be used.' );
+
+                // in case of missing keyword, it won't be used
+                return array();
             }
             else
             {
