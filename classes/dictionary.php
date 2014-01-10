@@ -8,7 +8,9 @@ class Dictionary
 {
     const OPERATOR_NAME = 'dictionary';
     const EXTENSION_NAME = 'eZDictionary';
+
     private $operators;
+    private $classes = array();
 
     /**
      * Default constructor
@@ -26,8 +28,6 @@ class Dictionary
     private function generateDictionary( $nodes )
     {
         $dictionary = array();
-        $title_attr = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'WordAttribute' );
-        $desc_attr = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'DescriptionAttribute' );
 
         if ( empty( $nodes ) )
         {
@@ -37,19 +37,108 @@ class Dictionary
 
         foreach ( $nodes as $node )
         {
-            $data_map = $node->dataMap();
-            if ( isset( $data_map[$title_attr] ) && isset( $data_map[$desc_attr] ) )
+            $attrib_values = $this->getAttributeValues( $node );
+            if ( !empty( $attrib_values ) )
             {
-                $dictionary[$data_map[$title_attr]->attribute( 'content' )] = $data_map[$desc_attr]->attribute( 'content' );
-            }
-            else
-            {
-                $this->printError( 'Node ' . $node->attribute( 'node_id' ) . ' (class "' . $node->attribute( 'class_identifier' )
-                                   . '") doesn\'t have at least one of following attributes: "' . $title_attr . '", "' . $desc_attr . '"' );
+                $dictionary[$attrib_values['keyword']] = $attrib_values['description'];
             }
         }
 
         return $dictionary;
+    }
+
+    /**
+     * Method returns the node data for defined attributes.
+     * @param type $node
+     * @return array
+     */
+    private function getAttributeValues( $node )
+    {
+        $data_map = $node->dataMap();
+        $attribs = $this->getClassAttributes( $node->attribute( 'class_identifier' ) );
+        $values = array();
+
+        // set keyword value
+        $values['keyword'] = $node->attribute( 'name' );
+        if ( !empty( $attribs['keyword'] ) )
+        {
+            if ( !isset( $data_map[$attribs['keyword']] ) )
+            {
+                $this->printError( 'Class "' . $node->attribute( 'class_identifier' ) . '" doesn\'t contain attribute "'
+                                   . $attribs['keyword'] . '" defined in ezdictionary.ini file. Using name attribute.', 'notice' );
+            }
+            else
+            {
+                $values['keyword'] = $data_map[$attribs['keyword']]->attribute( 'content' );
+            }
+        }
+
+        // set description value
+        if ( !isset( $data_map[$attribs['description']] ) )
+        {
+            $this->printError( 'Class "' . $node->attribute( 'class_identifier' ) . '" doesn\'t contain attribute "'
+                               . $attribs['description'] . '" defined in ezdictionary.ini file. Keyword "' . $values['keyword'] . '" won\'t be used.' );
+
+            // in case of missing description keyword is not used at all
+            return array();
+        }
+        else
+        {
+            $values['description'] = $data_map[$attribs['description']]->attribute( 'content' );
+        }
+
+        return $values;
+    }
+
+    /**
+     * Method returns an array of class attributes which will be used for dictionary
+     * @param string $class_name
+     * @return array
+     */
+    private function getClassAttributes( $class_name )
+    {
+        $classes = $this->getClasses();
+        $attributes = array();
+
+        if ( isset( $classes[$class_name][1] ) )
+        {
+            $attributes = array(
+                'keyword' => $classes[$class_name][0],
+                'description' => $classes[$class_name][1]
+            );
+        }
+        else
+        {
+            $this->printError( 'Class "' . $class_name . '" is not configured properly. Check ezdictionaty.ini file.' );
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * Method returns all DictionaryClasses data - containing class names as array keys and attribute names as values
+     * @return array
+     */
+    private function getClasses()
+    {
+        if( empty( $this->classes ) ) {
+            $this->classes = \eZINI::instance( 'ezdictionary.ini' )->variableArray( 'TemplateOperator', 'DictionaryClasses' );
+        }
+        return $this->classes;
+    }
+
+    /**
+     * Method returns an array of class identifiers
+     * @return type
+     */
+    private function getClassesList()
+    {
+        $classes = array();
+        foreach( $this->getClasses() as $key => $attributes )
+        {
+            $classes[] = $key;
+        }
+        return $classes;
     }
 
     /**
@@ -61,7 +150,7 @@ class Dictionary
         $parents = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'ParentNodes' );
         return \eZFunctionHandler::execute( 'content', 'tree', array(
             'class_filter_type' => 'include',
-            'class_filter_array' => \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'Classes' ),
+            'class_filter_array' => $this->getClassesList(),
             'parent_node_id' => $parents
         ) );
     }
@@ -129,8 +218,18 @@ class Dictionary
      * Function prints the error text in the eZDebug.
      * @param string $text
      */
-    private function printError( $text )
+    private function printError( $text, $type = 'error' )
     {
-        \eZDebug::writeError( self::EXTENSION_NAME . ': ' . $text );
+        $phrase = self::EXTENSION_NAME . ': ' . $text;
+        switch ( $type )
+        {
+            case 'notice':
+                \eZDebug::writeNotice( $phrase );
+                break;
+
+            default:
+                \eZDebug::writeError( $phrase );
+                break;
+        }
     }
 }
