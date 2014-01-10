@@ -128,20 +128,6 @@ class Dictionary
     }
 
     /**
-     * Method returns an array of class identifiers
-     * @return type
-     */
-    private function getClassesList()
-    {
-        $classes = array();
-        foreach( $this->getClasses() as $key => $attributes )
-        {
-            $classes[] = $key;
-        }
-        return $classes;
-    }
-
-    /**
      * Method fetches the nodes by names defined in TemplateOperator[Classes] which are children of TemplateOperator[ParentNodes]
      * @return array
      */
@@ -150,7 +136,7 @@ class Dictionary
         $parents = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'ParentNodes' );
         return \eZFunctionHandler::execute( 'content', 'tree', array(
             'class_filter_type' => 'include',
-            'class_filter_array' => $this->getClassesList(),
+            'class_filter_array' => array_keys( $this->getClasses() ),
             'parent_node_id' => $parents
         ) );
     }
