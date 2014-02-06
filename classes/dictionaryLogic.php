@@ -47,6 +47,119 @@ class DictionaryLogic
     }
 
     /**
+     * Method generates an array of dictionary items basing on given array of nodes
+     * @param array $nodes
+     * @return array
+     * @throws DictionaryLogicIncorrectNodesArrayException
+     * @throws DictionaryLogicNotNodeException
+     */
+    private function generateDictionary( $nodes )
+    {
+        if ( !is_array( $nodes ) )
+        {
+            throw new DictionaryLogicIncorrectNodesArrayException( 'Input needs to be an array' );
+        }
+
+        if ( sizeof( $nodes ) === 0 )
+        {
+            \eZDebug::writeError( 'There are no nodes which matches the dictionary settings. Please check the extension configuration (ezdictionary.ini).' );
+        }
+
+        $dictionary = array();
+        foreach ( $nodes as $node )
+        {
+            if ( !( $node instanceof \eZContentObjectTreeNode ) )
+            {
+                throw new DictionaryLogicNotNodeException( 'Incorrect node object' );
+            }
+
+            $attrib_values = $this->getAttributeValues( $node );
+            if ( !empty( $attrib_values ) )
+            {
+                $dictionary[$attrib_values['keyword']] = $attrib_values['description'];
+            }
+        }
+
+        return $dictionary;
+    }
+
+    /**
+     * Method returns the node data for defined attributes.
+     * @param \eZContentObjectTreeNode $node
+     * @return array
+     */
+    private function getAttributeValues( \eZContentObjectTreeNode $node )
+    {
+        $data_map = $node->dataMap();
+        $attribs = $this->getClassAttributes( $node->attribute( 'class_identifier' ) );
+        $values = array();
+
+        // set keyword value
+        $values['keyword'] = $node->attribute( 'name' );
+        if ( !empty( $attribs['keyword'] ) )
+        {
+            if ( !isset( $data_map[$attribs['keyword']] ) )
+            {
+                \eZDebug::writeError( 'Class "' . $node->attribute( 'class_identifier' ) . '" doesn\'t contain attribute "'
+                    . $attribs['keyword'] . '" defined in ezdictionary.ini file. Keyword "' . $values['keyword'] . '" won\'t be used.' );
+
+                // in case of missing keyword, it won't be used
+                return array();
+            }
+            else
+            {
+                $values['keyword'] = $data_map[$attribs['keyword']]->attribute( 'content' );
+            }
+        }
+
+        // set description value
+        if ( !isset( $data_map[$attribs['description']] ) )
+        {
+            \eZDebug::writeError( 'Class "' . $node->attribute( 'class_identifier' ) . '" doesn\'t contain attribute "'
+                . $attribs['description'] . '" defined in ezdictionary.ini file. Keyword "' . $values['keyword'] . '" won\'t be used.' );
+
+            // in case of missing description keyword is not used at all
+            return array();
+        }
+        else
+        {
+            $values['description'] = $data_map[$attribs['description']]->attribute( 'content' );
+        }
+
+        return $values;
+    }
+
+    /**
+     * Method returns an array of class attributes which will be used for dictionary
+     * @param string $class_name
+     * @return array
+     * @throws DictionaryLogicIncorrectAttributeException
+     * @throws DictionaryLogicIncorrectClassNameException
+     */
+    private function getClassAttributes( $class_name )
+    {
+        if ( !is_string( $class_name ) || strlen( $class_name ) === 0 )
+        {
+            throw new DictionaryLogicIncorrectClassNameException( 'Incorrect class name' );
+        }
+
+        $classes = $this->getClasses();
+        $attributes = array();
+
+        if ( !isset( $classes[$class_name][1] ) )
+        {
+            throw new DictionaryLogicIncorrectAttributeException( 'Class "' . $class_name . '" is not configured properly. Check ezdictionary.ini file.' );
+        }
+
+        $attributes = array(
+            'keyword' => $classes[$class_name][0],
+            'description' => $classes[$class_name][1]
+        );
+
+        return $attributes;
+    }
+
+    /**
      * Method returns all DictionaryClasses data - containing class names as array keys and attribute names as values
      * @return array
      */
@@ -77,7 +190,7 @@ class DictionaryLogic
     public function generateMarkup()
     {
         $dictionary = $this->generateDictionary( $this->getWordNodes() );
-/*        foreach( $dictionary as $word => $description )
+        foreach( $dictionary as $word => $description )
         {
             $dict_tpl = \eZTemplate::factory();
             $dict_tpl->setVariable( 'dict_desc', $description );
@@ -89,6 +202,8 @@ class DictionaryLogic
             {
                 $operator_value = preg_replace( $pattern, $dict_tpl->fetch( 'design:ezdictionary/tooltip.tpl' ), $operator_value );
             }
-        }*/
+        }
+
+        return $operator_value;
     }
 } 
