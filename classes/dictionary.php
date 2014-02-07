@@ -3,7 +3,7 @@ namespace MakingWaves\eZDictionary;
 
 /**
  * Class DictionaryOperator
- * Implements the eZPublish interface (which in face doesn't exist) for template operator
+ * Implements the eZPublish interface (which in fact doesn't exist) for template operator
  * @package MakingWaves\eZDictionary
  */
 class DictionaryOperator
