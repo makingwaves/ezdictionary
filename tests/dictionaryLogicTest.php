@@ -5,7 +5,7 @@ use \MakingWaves\eZDictionary\DictionaryLogic;
 
 /**
  * Class contains tests for DictionaryLogic class. Can be run by:
- * $ php tests/runtests.php --dsn mysql://root:pass@localhost/db_name --filter="DictionaryLogic" --db-per-test
+ * $ php tests/runtests.php --dsn mysql://root:pass@localhost/db_name --filter="DictionaryLogicTest" --db-per-test
  */
 class DictionaryLogicTest extends \ezpDatabaseTestCase
 {
@@ -332,6 +332,63 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
         // test not empty correct input
         $result = $method->invoke( new DictionaryLogic( 'test', array( 'test' ) ), array( $node ) );
         $this->assertTrue( is_array( $result ) && sizeof( $result ) > 0 );
+    }
+
+    /**
+     * @expectedException \MakingWaves\eZDictionary\DictionaryLogicIncorrectParameterTypeException
+     * @dataProvider providerIncorrectOperatorValue
+     */
+    public function testGetParameterIncorrectInputType( $input )
+    {
+        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'getParameter' );
+        $method->setAccessible( true );
+
+        $method->invoke( new DictionaryLogic( 'test', array( 'test' ) ), $input );
+    }
+
+    /**
+     * @expectedException \MakingWaves\eZDictionary\DictionaryLogicParameterDoesNotExistException
+     */
+    public function testGetParameterNotExists()
+    {
+        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'getParameter' );
+        $method->setAccessible( true );
+
+        $method->invoke( new DictionaryLogic( 'test', array( 'test' ) ), 'param_not_exists' );
+    }
+
+    /**
+     * Tests correct behaviour of getParameter() method
+     */
+    public function testGetParameterCorrect()
+    {
+        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'getParameter' );
+        $method->setAccessible( true );
+
+        $test_value = 'value';
+        $result = $method->invoke( new DictionaryLogic( 'test', array( 'test' => $test_value ) ), 'test' );
+        $this->assertEquals( $test_value, $result );
+    }
+
+    /**
+     * Tests correct behaviour of generateMarkup() method
+     */
+    public function testGenerateMarkup()
+    {
+        $dictionary = new DictionaryLogic( 'test', array( 'case_sensitive' => 'true' ) );
+
+        // load ini settings
+        $this->setIniSettings( true, array(
+            'TemplateOperator' => array(
+                'DictionaryClasses' => array(
+                    'folder' => 'name;short_name'
+                ),
+                'ParentNodes' => array( 1 )
+            )
+        ) );
+
+        $result = $dictionary->generateMarkup();
+        $this->assertTrue( is_string( $result ) );
     }
 
     /**

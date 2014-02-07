@@ -1,6 +1,11 @@
 <?php
 namespace MakingWaves\eZDictionary;
 
+/**
+ * Class DictionaryOperator
+ * Implements the eZPublish interface (which in face doesn't exist) for template operator
+ * @package MakingWaves\eZDictionary
+ */
 class DictionaryOperator
 {
     const OPERATOR_NAME = 'dictionary';
@@ -10,7 +15,7 @@ class DictionaryOperator
      */
     public function modify( $tpl, $operator_name, $operator_parameters, $root_namespace, $current_namespace, &$operator_value, $named_parameters )
     {
-        $dictionary = new DictionaryLogic( self::OPERATOR_NAME, $operator_value, $named_parameters );
+        $dictionary = new DictionaryLogic( $operator_value, $named_parameters );
         $operator_value = $dictionary->generateMarkup();
     }
 
