@@ -268,47 +268,12 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
         $this->assertTrue( is_array( $result ) && sizeof( $result ) === 0 );
     }
 
-
     /**
-     * Data provider for testGenerateDictionaryIncorrectInput()
-     * @return array
+     * Test correct behaviour of getDictionaryArray() method
      */
-    public function providerGenerateDictionaryIncorrectInput()
+    public function testGetDictionaryArrayCorrect()
     {
-        return array(
-            array( false ), array( null ), array( true ), array( -1 ), array( 1 ), array( '' ), array( 'test' )
-        );
-    }
-
-    /**
-     * @dataProvider providerGenerateDictionaryIncorrectInput
-     * @expectedException \MakingWaves\eZDictionary\DictionaryLogicIncorrectNodesArrayException
-     */
-    public function testGenerateDictionaryIncorrectInput( $input )
-    {
-        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'generateDictionary' );
-        $method->setAccessible( true );
-        $method->invoke( new DictionaryLogic( 'test', array( 'test' ) ), $input );
-    }
-
-    /**
-     * Test situation when input array contains element which is not a valid node object
-     * @expectedException \MakingWaves\eZDictionary\DictionaryLogicNotNodeException
-     */
-    public function testGenerateDictionaryNotNode()
-    {
-        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'generateDictionary' );
-        $method->setAccessible( true );
-
-        $method->invoke( new DictionaryLogic( 'test', array( 'test' ) ), array( 'test' ) );
-    }
-
-    /**
-     * Test correct behaviour of generateDirectoryCorrect() method
-     */
-    public function testGenerateDirectoryCorrect()
-    {
-        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'generateDictionary' );
+        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'getDictionaryArray' );
         $method->setAccessible( true );
 
         // test empty input
@@ -325,12 +290,8 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
             )
         ) );
 
-        $node = \eZFunctionHandler::execute( 'content', 'node', array(
-            'node_id' => 2
-        ) );
-
         // test not empty correct input
-        $result = $method->invoke( new DictionaryLogic( 'test', array( 'test' ) ), array( $node ) );
+        $result = $method->invoke( new DictionaryLogic( 'test', array( 'test' ) ) );
         $this->assertTrue( is_array( $result ) && sizeof( $result ) > 0 );
     }
 
@@ -375,7 +336,8 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
      */
     public function testGenerateMarkup()
     {
-        $dictionary = new DictionaryLogic( 'test', array( 'case_sensitive' => 'true' ) );
+        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'generateMarkup' );
+        $method->setAccessible( true );
 
         // load ini settings
         $this->setIniSettings( true, array(
@@ -387,8 +349,39 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
             )
         ) );
 
-        $result = $dictionary->generateMarkup();
+        $result = $method->invoke( new DictionaryLogic( 'test', array( 'test' => 'test' ) ) );
         $this->assertTrue( is_string( $result ) );
+    }
+
+    /**
+     * Testing applyDictionary() method against working cache mechanism
+     */
+    public function testApplyDictionaryCacheWorks()
+    {
+        $dictionary = new DictionaryLogic( 'test', array( 'case_sensitive' => 'true' ) );
+        // load ini settings
+        $this->setIniSettings( true, array(
+            'TemplateOperator' => array(
+                'DictionaryClasses' => array(
+                    'folder' => 'name;short_name'
+                ),
+                'ParentNodes' => array( 1 )
+            )
+        ) );
+
+        // cache is stored
+        $result = $dictionary->applyDictionary();
+        $this->assertTrue( is_string( $result ) );
+
+        // now change the private variable value
+        $property = new \ReflectionProperty( 'MakingWaves\eZDictionary\DictionaryLogic', 'cache' );
+        $property->setAccessible( true );
+        $property->setValue( array( 'new_key' => 'new_value' ) );
+
+        // run the method again, a result should be same
+        $result2 = $dictionary->applyDictionary();
+        $this->assertTrue( is_string( $result2 ) );
+        $this->assertEquals( $result, $result2 );
     }
 
     /**
