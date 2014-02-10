@@ -89,6 +89,7 @@ class DictionaryLogic
 
     /**
      * Method generates an array of dictionary items basing on given array of nodes
+     * @param array $nodes - array of nodes to base dictionary data on
      * @return array
      */
     private function generateDictionaryArray( $nodes )
@@ -113,13 +114,14 @@ class DictionaryLogic
 
     /**
      * Method generates new html markup and returns it
+     * @param array $dictionary_array
      * @return string
      */
-    private function generateMarkup()
+    private function generateMarkup( $dictionary_array )
     {
         $new_value = $this->operator_value;
 
-        foreach( self::$cache as $word => $description )
+        foreach ( $dictionary_array as $word => $description )
         {
             $dict_tpl = \eZTemplate::factory();
             $dict_tpl->setVariable( 'dict_desc', $description );
@@ -142,12 +144,12 @@ class DictionaryLogic
      */
     private function getCachedData()
     {
-        $path = eZSys::cacheDirectory() . '/';
+        $path = \eZSys::cacheDirectory() . '/';
         $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' ) . '/';
         $filename = $path . $this->getCacheHash() . '.cache';
 
-        $clusterFileHandler = eZClusterFileHandler::instance( $filename );
-        $content = $clusterFileHandler->fileFetchContents( $filename );
+        $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
+        $content = $cluster_file_handler->fileFetchContents( $filename );
 
         return unserialize( $content );
     }
@@ -159,12 +161,12 @@ class DictionaryLogic
      */
     private function writeToCache( $dictionary_array )
     {
-        $path = eZSys::cacheDirectory() . '/';
+        $path = \eZSys::cacheDirectory() . '/';
         $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' ) . '/';
         $filename = $path . $this->getCacheHash() . '.cache';
 
-        $clusterFileHandler = eZClusterFileHandler::instance( $filename );
-        $clusterFileHandler->fileStoreContents( $filename, serialize( $dictionary_array ) );
+        $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
+        $cluster_file_handler->fileStoreContents( $filename, serialize( $dictionary_array ) );
     }
 
     /**
