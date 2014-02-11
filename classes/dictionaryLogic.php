@@ -238,7 +238,7 @@ class DictionaryLogic
     }
 
     /**
-     * Method runs recursive and precess all the branches in DOM tree.
+     * Method runs recursive and prpcess all the branches in DOM tree.
      * @param \DOMNodeList $dom_nodes
      * @param array $omit_tags
      */
