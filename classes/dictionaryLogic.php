@@ -180,7 +180,7 @@ class DictionaryLogic
 
         $path = \eZSys::cacheDirectory() . '/';
         $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' );
-        return "$path/$id.cache';
+        return "$path/$id.cache";
     }
 
     /**
