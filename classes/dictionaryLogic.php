@@ -144,10 +144,7 @@ class DictionaryLogic
      */
     private function getCachedData()
     {
-        $path = \eZSys::cacheDirectory() . '/';
-        $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' ) . '/';
-        $filename = $path . $this->getCacheHash() . '.cache';
-
+        $filename = getCacheFilename();
         $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
         $content = $cluster_file_handler->fileFetchContents( $filename );
 
@@ -161,19 +158,17 @@ class DictionaryLogic
      */
     private function writeToCache( $dictionary_array )
     {
-        $path = \eZSys::cacheDirectory() . '/';
-        $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' ) . '/';
-        $filename = $path . $this->getCacheHash() . '.cache';
-
+        $filename = getCacheFilename();
         $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
         $cluster_file_handler->fileStoreContents( $filename, serialize( $dictionary_array ) );
     }
 
     /**
-     * Make an identification value, so the cache is automagically updated when objects change.
+     * Build the cache file path with hash name
+     * Makes an identification value, so the cache is automagically updated when objects change.
      * @return string
      */
-    private function getCacheHash()
+    private function getCacheFilename()
     {
         $parent_node = \eZFunctionHandler::execute( 'content', 'node', array( 'node_id' => $this->parent_node_id ) );
         $no_of_subnodes = \eZFunctionHandler::execute( 'content', 'tree_count',
@@ -181,9 +176,11 @@ class DictionaryLogic
                    'class_filter_type' => 'include',
                    'class_filter_array' => array_keys( $this->getClasses() ),
          ) );
+        $id = md5( $parent_node->attribute( 'modified_subnode' ) . '_' . $no_of_subnodes );
 
-        $id = $parent_node->attribute( 'modified_subnode' ) . '_' . $no_of_subnodes;
-        return md5( $id );
+        $path = \eZSys::cacheDirectory() . '/';
+        $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' );
+        return "$path/$id.cache';
     }
 
     /**
