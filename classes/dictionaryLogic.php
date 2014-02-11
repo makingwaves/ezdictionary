@@ -17,6 +17,11 @@ class DictionaryLogic
     private $operator_value;
 
     /**
+     * @var string
+     */
+    private static $parent_node_id = 0;
+
+    /**
      * @var array
      */
     private $named_parameters;
@@ -25,11 +30,6 @@ class DictionaryLogic
      * @var array
      */
     private $classes = array();
-
-    /**
-     * @var array
-     */
-    private static $cache = array();
 
     /**
      * Default constructor
@@ -52,6 +52,11 @@ class DictionaryLogic
 
         $this->operator_value = $operator_value;
         $this->named_parameters = $named_parameters;
+
+        if ( empty( $this->parent_node_id ) )
+        {
+            $this->parent_node_id = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'ParentNodes' );
+        }
     }
 
     /**
@@ -60,22 +65,35 @@ class DictionaryLogic
      */
     public function applyDictionary()
     {
-        if ( sizeof( self::$cache ) === 0 )
+        $dictionary_array = $this->getDictionaryArray();
+
+        return $this->generateMarkup( $dictionary_array );
+    }
+
+    /**
+     * Get dictionary array, handles caching
+     * @return array
+     */
+    public function getDictionaryArray()
+    {
+        $dictionary_array = $this->getCachedData();
+        if ( empty( $dictionary_array ) )
         {
-            self::$cache = $this->getDictionaryArray();
+            $dictionary_nodes = $this->getWordNodes();
+            $dictionary_array = $this->generateDictionaryArray( $dictionary_nodes );
+            $this->writeToCache( $dictionary_array );
         }
 
-        return $this->generateMarkup();
+        return $dictionary_array;
     }
 
     /**
      * Method generates an array of dictionary items basing on given array of nodes
+     * @param array $nodes - array of nodes to base dictionary data on
      * @return array
      */
-    private function getDictionaryArray()
+    private function generateDictionaryArray( $nodes )
     {
-        $nodes = $this->getWordNodes();
-
         if ( sizeof( $nodes ) === 0 )
         {
             \eZDebug::writeError( 'There are no nodes which matches the dictionary settings. Please check the extension configuration (ezdictionary.ini).' );
@@ -96,9 +114,10 @@ class DictionaryLogic
 
     /**
      * Method generates new html markup and returns it
+     * @param array $dictionary_array
      * @return string
      */
-    private function generateMarkup()
+    private function generateMarkup( $dictionary_array )
     {
         $dom = new \DOMDocument();
         libxml_use_internal_errors( true );
@@ -106,9 +125,54 @@ class DictionaryLogic
         $dom->loadHTML( mb_convert_encoding( $this->operator_value, 'HTML-ENTITIES', "UTF-8" ) );
 
         $omit_tags = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'OmitTags' );
-        $this->processBranchOfDomNodes( $dom->childNodes, $omit_tags );
+        $this->processBranchOfDomNodes( $dictionary_array, $dom->childNodes, $omit_tags );
 
         return utf8_encode( html_entity_decode( $dom->saveHTML() ) );
+    }
+
+    /**
+     * Return cached values
+     * @return array
+     */
+    private function getCachedData()
+    {
+        $filename = $this->getCacheFilename();
+        $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
+        $content = $cluster_file_handler->fileFetchContents( $filename );
+
+        return unserialize( $content );
+    }
+
+    /**
+     * Serialize and cache dictionary data
+     * @param array $dictionary_array
+     * @return array
+     */
+    private function writeToCache( $dictionary_array )
+    {
+        $filename = $this->getCacheFilename();
+        $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
+        $cluster_file_handler->fileStoreContents( $filename, serialize( $dictionary_array ) );
+    }
+
+    /**
+     * Build the cache file path with hash name
+     * Makes an identification value, so the cache is automagically updated when objects change.
+     * @return string
+     */
+    private function getCacheFilename()
+    {
+        $parent_node = \eZFunctionHandler::execute( 'content', 'node', array( 'node_id' => $this->parent_node_id ) );
+        $no_of_subnodes = \eZFunctionHandler::execute( 'content', 'tree_count',
+            array( 'parent_node_id' => $this->parent_node_id,
+                   'class_filter_type' => 'include',
+                   'class_filter_array' => array_keys( $this->getClasses() ),
+         ) );
+        $id = md5( $parent_node->attribute( 'modified_subnode' ) . '_' . $no_of_subnodes );
+
+        $path = \eZSys::cacheDirectory() . '/';
+        $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' );
+        return "$path/$id.cache";
     }
 
     /**
@@ -231,7 +295,7 @@ class DictionaryLogic
         $nodes = \eZFunctionHandler::execute( 'content', 'tree', array(
             'class_filter_type' => 'include',
             'class_filter_array' => array_keys( $this->getClasses() ),
-            'parent_node_id' => \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'ParentNodes' )
+            'parent_node_id' => $this->parent_node_id
         ) );
 
         return is_array( $nodes ) ? $nodes : array();
@@ -242,7 +306,7 @@ class DictionaryLogic
      * @param \DOMNodeList $dom_nodes
      * @param array $omit_tags
      */
-    private function processBranchOfDomNodes( \DOMNodeList $dom_nodes, $omit_tags )
+    private function processBranchOfDomNodes( $dictionary_array, \DOMNodeList $dom_nodes, $omit_tags )
     {
         // loop all dom nodes for given list
         foreach ( $dom_nodes as $dom_node )
@@ -257,7 +321,7 @@ class DictionaryLogic
             if ( $dom_node->nodeName === '#text' )
             {
                 // loop all cached nodes
-                foreach( self::$cache as $word => $description )
+                foreach( $dictionary_array as $word => $description )
                 {
                     $dict_tpl = \eZTemplate::factory();
                     $dict_tpl->setVariable( 'dict_desc', $description );
