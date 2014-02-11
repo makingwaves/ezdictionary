@@ -100,23 +100,15 @@ class DictionaryLogic
      */
     private function generateMarkup()
     {
-        $new_value = $this->operator_value;
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors( true );
 
-        foreach( self::$cache as $word => $description )
-        {
-            $dict_tpl = \eZTemplate::factory();
-            $dict_tpl->setVariable( 'dict_desc', $description );
+        $dom->loadHTML( mb_convert_encoding( $this->operator_value, 'HTML-ENTITIES', "UTF-8" ) );
 
-            $case_sensitive = $this->getParameter( 'case_sensitive' ) === true ? '' : 'i';
-            $pattern =  '/(\b' . $word . '\b)/' . $case_sensitive;
+        $omit_tags = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'OmitTags' );
+        $this->processBranchOfDomNodes( $dom->childNodes, $omit_tags );
 
-            if ( preg_match( $pattern, $new_value ) )
-            {
-                $new_value = preg_replace( $pattern, $dict_tpl->fetch( 'design:ezdictionary/tooltip.tpl' ), $new_value );
-            }
-        }
-
-        return $new_value;
+        return utf8_encode( html_entity_decode( $dom->saveHTML() ) );
     }
 
     /**
@@ -243,5 +235,48 @@ class DictionaryLogic
         ) );
 
         return is_array( $nodes ) ? $nodes : array();
+    }
+
+    /**
+     * Method runs recursive and prpcess all the branches in DOM tree.
+     * @param \DOMNodeList $dom_nodes
+     * @param array $omit_tags
+     */
+    private function processBranchOfDomNodes( \DOMNodeList $dom_nodes, $omit_tags )
+    {
+        // loop all dom nodes for given list
+        foreach ( $dom_nodes as $dom_node )
+        {
+            // omit the html tags defined in ini file
+            if ( in_array( $dom_node->nodeName, $omit_tags ) )
+            {
+                continue;
+            }
+
+            // #text = last dom node, contains plain text
+            if ( $dom_node->nodeName === '#text' )
+            {
+                // loop all cached nodes
+                foreach( self::$cache as $word => $description )
+                {
+                    $dict_tpl = \eZTemplate::factory();
+                    $dict_tpl->setVariable( 'dict_desc', $description );
+
+                    $case_sensitive = $this->getParameter( 'case_sensitive' ) === true ? '' : 'i';
+                    $pattern =  '/(\b' . $word . '\b)/' . $case_sensitive;
+
+                    if ( preg_match( $pattern, $dom_node->nodeValue ) )
+                    {
+                        $dom_node->nodeValue = preg_replace( $pattern, $dict_tpl->fetch( 'design:ezdictionary/tooltip.tpl' ), $dom_node->nodeValue );
+                    }
+                }
+            }
+
+            // run the function recursive in case when current node contains children
+            if ( $dom_node->childNodes instanceof \DOMNodeList )
+            {
+                $this->processBranchOfDomNodes( $dom_node->childNodes, $omit_tags );
+            }
+        }
     }
 } 
