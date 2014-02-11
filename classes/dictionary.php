@@ -16,7 +16,7 @@ class DictionaryOperator
     public function modify( $tpl, $operator_name, $operator_parameters, $root_namespace, $current_namespace, &$operator_value, $named_parameters )
     {
         $dictionary = new DictionaryLogic( $operator_value, $named_parameters );
-        $operator_value = $dictionary->generateMarkup();
+        $operator_value = $dictionary->applyDictionary();
     }
 
     /**

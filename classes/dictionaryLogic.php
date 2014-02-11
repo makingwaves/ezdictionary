@@ -27,6 +27,11 @@ class DictionaryLogic
     private $classes = array();
 
     /**
+     * @var array
+     */
+    private static $cache = array();
+
+    /**
      * Default constructor
      * @param string $operator_value
      * @param array $named_parameters
@@ -50,18 +55,26 @@ class DictionaryLogic
     }
 
     /**
-     * Method generates an array of dictionary items basing on given array of nodes
-     * @param array $nodes
-     * @return array
-     * @throws DictionaryLogicIncorrectNodesArrayException
-     * @throws DictionaryLogicNotNodeException
+     * Applies the dictionary markup into operator value
+     * @return string
      */
-    private function generateDictionary( $nodes )
+    public function applyDictionary()
     {
-        if ( !is_array( $nodes ) )
+        if ( sizeof( self::$cache ) === 0 )
         {
-            throw new DictionaryLogicIncorrectNodesArrayException( 'Input needs to be an array' );
+            self::$cache = $this->getDictionaryArray();
         }
+
+        return $this->generateMarkup();
+    }
+
+    /**
+     * Method generates an array of dictionary items basing on given array of nodes
+     * @return array
+     */
+    private function getDictionaryArray()
+    {
+        $nodes = $this->getWordNodes();
 
         if ( sizeof( $nodes ) === 0 )
         {
@@ -71,11 +84,6 @@ class DictionaryLogic
         $dictionary = array();
         foreach ( $nodes as $node )
         {
-            if ( !( $node instanceof \eZContentObjectTreeNode ) )
-            {
-                throw new DictionaryLogicNotNodeException( 'Incorrect node object' );
-            }
-
             $attrib_values = $this->getAttributeValues( $node );
             if ( !empty( $attrib_values ) )
             {
@@ -90,12 +98,11 @@ class DictionaryLogic
      * Method generates new html markup and returns it
      * @return string
      */
-    public function generateMarkup()
+    private function generateMarkup()
     {
-        $dictionary = $this->generateDictionary( $this->getWordNodes() );
         $new_value = $this->operator_value;
 
-        foreach( $dictionary as $word => $description )
+        foreach( self::$cache as $word => $description )
         {
             $dict_tpl = \eZTemplate::factory();
             $dict_tpl->setVariable( 'dict_desc', $description );
