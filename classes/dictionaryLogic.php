@@ -144,7 +144,7 @@ class DictionaryLogic
      */
     private function getCachedData()
     {
-        $filename = getCacheFilename();
+        $filename = $this->getCacheFilename();
         $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
         $content = $cluster_file_handler->fileFetchContents( $filename );
 
@@ -158,7 +158,7 @@ class DictionaryLogic
      */
     private function writeToCache( $dictionary_array )
     {
-        $filename = getCacheFilename();
+        $filename = $this->getCacheFilename();
         $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
         $cluster_file_handler->fileStoreContents( $filename, serialize( $dictionary_array ) );
     }
