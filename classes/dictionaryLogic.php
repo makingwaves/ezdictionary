@@ -17,9 +17,9 @@ class DictionaryLogic
     private $operator_value;
 
     /**
-     * @var string
+     * @var array
      */
-    private static $parent_node_id = 0;
+    private static $parent_array = array();
 
     /**
      * @var array
@@ -37,6 +37,7 @@ class DictionaryLogic
      * @param array $named_parameters
      * @throws DictionaryLogicIncorrectOperatorValueException
      * @throws DictionaryLogicIncorrectOperatorParamException
+     * @throws DictionaryLogicMissingParentNodesException
      */
     public function __construct( $operator_value, $named_parameters )
     {
@@ -53,9 +54,13 @@ class DictionaryLogic
         $this->operator_value = $operator_value;
         $this->named_parameters = $named_parameters;
 
-        if ( empty( $this->parent_node_id ) )
+        if ( count( self::$parent_array ) === 0 )
         {
-            $this->parent_node_id = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'ParentNodes' );
+            self::$parent_array = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'ParentNodes' );
+            if ( !is_array( self::$parent_array ) )
+            {
+                throw new DictionaryLogicMissingParentNodesException( 'There are no parent nodes defined in INI settings' );
+            }
         }
     }
 
@@ -76,12 +81,14 @@ class DictionaryLogic
      */
     public function getDictionaryArray()
     {
-        $dictionary_array = $this->getCachedData();
+        $cache_mechanism = new CacheMechanism( self::$parent_array, $this->getClasses() );
+
+        $dictionary_array = $cache_mechanism->getCachedData();
         if ( empty( $dictionary_array ) )
         {
             $dictionary_nodes = $this->getWordNodes();
             $dictionary_array = $this->generateDictionaryArray( $dictionary_nodes );
-            $this->writeToCache( $dictionary_array );
+            $cache_mechanism->writeToCache( $dictionary_array );
         }
 
         return $dictionary_array;
@@ -128,51 +135,6 @@ class DictionaryLogic
         $this->processBranchOfDomNodes( $dictionary_array, $dom->childNodes, $omit_tags );
 
         return utf8_encode( html_entity_decode( $dom->saveHTML() ) );
-    }
-
-    /**
-     * Return cached values
-     * @return array
-     */
-    private function getCachedData()
-    {
-        $filename = $this->getCacheFilename();
-        $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
-        $content = $cluster_file_handler->fileFetchContents( $filename );
-
-        return unserialize( $content );
-    }
-
-    /**
-     * Serialize and cache dictionary data
-     * @param array $dictionary_array
-     * @return array
-     */
-    private function writeToCache( $dictionary_array )
-    {
-        $filename = $this->getCacheFilename();
-        $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
-        $cluster_file_handler->fileStoreContents( $filename, serialize( $dictionary_array ) );
-    }
-
-    /**
-     * Build the cache file path with hash name
-     * Makes an identification value, so the cache is automagically updated when objects change.
-     * @return string
-     */
-    private function getCacheFilename()
-    {
-        $parent_node = \eZFunctionHandler::execute( 'content', 'node', array( 'node_id' => $this->parent_node_id ) );
-        $no_of_subnodes = \eZFunctionHandler::execute( 'content', 'tree_count',
-            array( 'parent_node_id' => $this->parent_node_id,
-                   'class_filter_type' => 'include',
-                   'class_filter_array' => array_keys( $this->getClasses() ),
-         ) );
-        $id = md5( $parent_node->attribute( 'modified_subnode' ) . '_' . $no_of_subnodes );
-
-        $path = \eZSys::cacheDirectory() . '/';
-        $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' );
-        return "$path/$id.cache";
     }
 
     /**
@@ -236,19 +198,16 @@ class DictionaryLogic
         }
 
         $classes = $this->getClasses();
-        $attributes = array();
 
         if ( !isset( $classes[$class_name][1] ) )
         {
             throw new DictionaryLogicIncorrectAttributeException( 'Class "' . $class_name . '" is not configured properly. Check ezdictionary.ini file.' );
         }
 
-        $attributes = array(
+        return array(
             'keyword' => $classes[$class_name][0],
             'description' => $classes[$class_name][1]
         );
-
-        return $attributes;
     }
 
     /**
@@ -280,7 +239,7 @@ class DictionaryLogic
 
         if ( !isset( $this->named_parameters[$name] ) )
         {
-            throw new DictionaryLogicParameterDoesNotExistException( 'Parameter with given name does not exists' );
+            throw new DictionaryLogicParameterDoesNotExistException( 'Parameter with given name ("' . $name . '") does not exists' );
         }
 
         return $this->named_parameters[$name];
@@ -295,16 +254,17 @@ class DictionaryLogic
         $nodes = \eZFunctionHandler::execute( 'content', 'tree', array(
             'class_filter_type' => 'include',
             'class_filter_array' => array_keys( $this->getClasses() ),
-            'parent_node_id' => $this->parent_node_id
+            'parent_node_id' => self::$parent_array
         ) );
 
         return is_array( $nodes ) ? $nodes : array();
     }
 
     /**
-     * Method runs recursive and prpcess all the branches in DOM tree.
+     * Method runs recursive and process all the branches in DOM tree.
      * @param \DOMNodeList $dom_nodes
      * @param array $omit_tags
+     * @param array $dictionary_array
      */
     private function processBranchOfDomNodes( $dictionary_array, \DOMNodeList $dom_nodes, $omit_tags )
     {
@@ -339,7 +299,7 @@ class DictionaryLogic
             // run the function recursive in case when current node contains children
             if ( $dom_node->childNodes instanceof \DOMNodeList )
             {
-                $this->processBranchOfDomNodes( $dom_node->childNodes, $omit_tags );
+                $this->processBranchOfDomNodes( $dictionary_array, $dom_node->childNodes, $omit_tags );
             }
         }
     }
