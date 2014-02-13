@@ -9,11 +9,6 @@ use \MakingWaves\eZDictionary\DictionaryLogic;
  */
 class DictionaryLogicTest extends \ezpDatabaseTestCase
 {
-    private function clearCache()
-    {
-
-    }
-
     /**
      * Method sets the ini settings for dictionary operator
      * @param bool $load_original

@@ -32,6 +32,11 @@ class DictionaryLogic
     private $classes = array();
 
     /**
+     * @var CacheMechanism
+     */
+    private $cache_mechanism;
+
+    /**
      * Default constructor
      * @param string $operator_value
      * @param array $named_parameters
@@ -62,6 +67,8 @@ class DictionaryLogic
                 throw new DictionaryLogicMissingParentNodesException( 'There are no parent nodes defined in INI settings' );
             }
         }
+
+        $this->cache_mechanism = new CacheMechanism( self::$parent_array, $this->getClasses() );
     }
 
     /**
@@ -81,12 +88,12 @@ class DictionaryLogic
      */
     public function getDictionaryArray()
     {
-        $dictionary_array = $this->getCachedData();
+        $dictionary_array = $this->cache_mechanism->getCachedData();
         if ( empty( $dictionary_array ) )
         {
             $dictionary_nodes = $this->getWordNodes();
             $dictionary_array = $this->generateDictionaryArray( $dictionary_nodes );
-            $this->writeToCache( $dictionary_array );
+            $this->cache_mechanism->writeToCache( $dictionary_array );
         }
 
         return $dictionary_array;
@@ -133,58 +140,6 @@ class DictionaryLogic
         $this->processBranchOfDomNodes( $dictionary_array, $dom->childNodes, $omit_tags );
 
         return utf8_encode( html_entity_decode( $dom->saveHTML() ) );
-    }
-
-    /**
-     * Return cached values
-     * @return array
-     */
-    private function getCachedData()
-    {
-        $filename = $this->getCacheFilename();
-        $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
-        $content = $cluster_file_handler->fileFetchContents( $filename );
-
-        return unserialize( $content );
-    }
-
-    /**
-     * Serialize and cache dictionary data
-     * @param array $dictionary_array
-     * @return array
-     */
-    private function writeToCache( $dictionary_array )
-    {
-        $filename = $this->getCacheFilename();
-        $cluster_file_handler = \eZClusterFileHandler::instance( $filename );
-        $cluster_file_handler->fileStoreContents( $filename, serialize( $dictionary_array ) );
-    }
-
-    /**
-     * Build the cache file path with hash name
-     * Makes an identification value, so the cache is automagically updated when objects change.
-     * @return string
-     */
-    private function getCacheFilename()
-    {
-        $timestamps = array();
-        foreach( self::$parent_array as $node_id )
-        {
-            $node = \eZFunctionHandler::execute( 'content', 'node', array( 'node_id' => $node_id ) );
-            $timestamps[] = $node->attribute( 'modified_subnode' );
-        }
-
-        $no_of_subnodes = \eZFunctionHandler::execute( 'content', 'tree_count',
-            array( 'parent_node_id' => self::$parent_array,
-                   'class_filter_type' => 'include',
-                   'class_filter_array' => array_keys( $this->getClasses() ),
-         ) );
-        $id = md5( join( '_', $timestamps ) . '_' . $no_of_subnodes );
-
-        $path = \eZSys::cacheDirectory() . '/';
-        $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' );
-
-        return "$path/$id.cache";
     }
 
     /**
