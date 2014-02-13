@@ -9,6 +9,11 @@ use \MakingWaves\eZDictionary\DictionaryLogic;
  */
 class DictionaryLogicTest extends \ezpDatabaseTestCase
 {
+    private function clearCache()
+    {
+
+    }
+
     /**
      * Method sets the ini settings for dictionary operator
      * @param bool $load_original
@@ -94,6 +99,16 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
      */
     public function testCorrectOperatorConstructor( $operator_value, $named_parameters )
     {
+        // load ini settings
+        $this->setIniSettings( true, array(
+            'TemplateOperator' => array(
+                'DictionaryClasses' => array(
+                    'folder' => 'name;short_name'
+                ),
+                'ParentNodes' => array( 1 )
+            )
+        ) );
+
         $dictionary_logic = new DictionaryLogic( $operator_value, $named_parameters );
 
         $value_property = new \ReflectionProperty( 'MakingWaves\eZDictionary\DictionaryLogic', 'operator_value' );
@@ -129,13 +144,6 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
      */
     public function testGetWordNodes()
     {
-        $dictionary_logic = new DictionaryLogic( 'test', array( 'test' ) );
-        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'getWordNodes' );
-        $method->setAccessible( true );
-
-        $result = $method->invoke( $dictionary_logic );
-        $this->assertTrue( is_array( $result ) && sizeof( $result ) === 0, 'Result needs to be an empty array at this point' );
-
         // load ini settings
         $this->setIniSettings( true, array(
             'TemplateOperator' => array(
@@ -145,6 +153,10 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
                 'ParentNodes' => array( 1 )
             )
         ) );
+
+        $dictionary_logic = new DictionaryLogic( 'test', array( 'test' ) );
+        $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'getWordNodes' );
+        $method->setAccessible( true );
 
         $result = $method->invoke( $dictionary_logic );
         $this->assertTrue( is_array( $result ) && sizeof( $result ) > 0, 'Result needs to be a non-empty array at this point' );
@@ -276,10 +288,6 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
         $method = new \ReflectionMethod( 'MakingWaves\eZDictionary\DictionaryLogic', 'getDictionaryArray' );
         $method->setAccessible( true );
 
-        // test empty input
-        $result = $method->invoke( new DictionaryLogic( 'test', array( 'test' ) ), array( ) );
-        $this->assertTrue( is_array( $result ) && sizeof( $result ) === 0 );
-
         // load ini settings
         $this->setIniSettings( true, array(
             'TemplateOperator' => array(
@@ -349,39 +357,8 @@ class DictionaryLogicTest extends \ezpDatabaseTestCase
             )
         ) );
 
-        $result = $method->invoke( new DictionaryLogic( 'test', array( 'test' => 'test' ) ) );
+        $result = $method->invoke( new DictionaryLogic( 'test', array( 'case_sensitive' => 'true' ) ), array( 'hello' => 'world' ) );
         $this->assertTrue( is_string( $result ) );
-    }
-
-    /**
-     * Testing applyDictionary() method against working cache mechanism
-     */
-    public function testApplyDictionaryCacheWorks()
-    {
-        $dictionary = new DictionaryLogic( 'test', array( 'case_sensitive' => 'true' ) );
-        // load ini settings
-        $this->setIniSettings( true, array(
-            'TemplateOperator' => array(
-                'DictionaryClasses' => array(
-                    'folder' => 'name;short_name'
-                ),
-                'ParentNodes' => array( 1 )
-            )
-        ) );
-
-        // cache is stored
-        $result = $dictionary->applyDictionary();
-        $this->assertTrue( is_string( $result ) );
-
-        // now change the private variable value
-        $property = new \ReflectionProperty( 'MakingWaves\eZDictionary\DictionaryLogic', 'cache' );
-        $property->setAccessible( true );
-        $property->setValue( array( 'new_key' => 'new_value' ) );
-
-        // run the method again, a result should be same
-        $result2 = $dictionary->applyDictionary();
-        $this->assertTrue( is_string( $result2 ) );
-        $this->assertEquals( $result, $result2 );
     }
 
     /**

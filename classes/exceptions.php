@@ -8,3 +8,4 @@ class DictionaryLogicIncorrectAttributeException extends \Exception {}
 class DictionaryLogicIncorrectClassNameException extends \Exception {}
 class DictionaryLogicIncorrectParameterTypeException extends \Exception {}
 class DictionaryLogicParameterDoesNotExistException extends \Exception {}
+class DictionaryLogicMissingParentNodesException extends \Exception {}
