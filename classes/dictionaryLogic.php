@@ -32,11 +32,6 @@ class DictionaryLogic
     private $classes = array();
 
     /**
-     * @var CacheMechanism
-     */
-    private $cache_mechanism;
-
-    /**
      * Default constructor
      * @param string $operator_value
      * @param array $named_parameters
@@ -67,8 +62,6 @@ class DictionaryLogic
                 throw new DictionaryLogicMissingParentNodesException( 'There are no parent nodes defined in INI settings' );
             }
         }
-
-        $this->cache_mechanism = new CacheMechanism( self::$parent_array, $this->getClasses() );
     }
 
     /**
@@ -88,12 +81,14 @@ class DictionaryLogic
      */
     public function getDictionaryArray()
     {
-        $dictionary_array = $this->cache_mechanism->getCachedData();
+        $cache_mechanism = new CacheMechanism( self::$parent_array, $this->getClasses() );
+
+        $dictionary_array = $cache_mechanism->getCachedData();
         if ( empty( $dictionary_array ) )
         {
             $dictionary_nodes = $this->getWordNodes();
             $dictionary_array = $this->generateDictionaryArray( $dictionary_nodes );
-            $this->cache_mechanism->writeToCache( $dictionary_array );
+            $cache_mechanism->writeToCache( $dictionary_array );
         }
 
         return $dictionary_array;
