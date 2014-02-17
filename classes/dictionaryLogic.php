@@ -287,7 +287,7 @@ class DictionaryLogic
                     $dict_tpl->setVariable( 'dict_desc', $description );
 
                     $case_sensitive = $this->getParameter( 'case_sensitive' ) === true ? '' : 'i';
-                    $pattern =  '/(\b' . $word . '\b)/' . $case_sensitive;
+                    $pattern =  '/(\b' . $word . '\b)(?=[^<>]*(<|$))/' . $case_sensitive;
 
                     if ( preg_match( $pattern, $dom_node->nodeValue ) )
                     {
