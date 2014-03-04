@@ -133,8 +133,15 @@ class DictionaryLogic
 
         $omit_tags = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'OmitTags' );
         $this->processBranchOfDomNodes( $dictionary_array, $dom->childNodes, $omit_tags );
-
-        return utf8_encode( html_entity_decode( $dom->saveHTML() ) );
+        if ( version_compare( phpversion(), '5.4.0', '<' ) )
+        {
+            $html_fragment = preg_replace( '/^<!DOCTYPE.+?>/', '', str_replace( array( '<html>', '</html>', '<body>', '</body>' ), array( '', '', '', '' ), $dom->saveHTML() ) );
+        }
+        else
+        {
+            $html_fragment = $dom->saveHTML();
+        }
+        return utf8_encode( html_entity_decode( $html_fragment ) );
     }
 
     /**
