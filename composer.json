@@ -1,0 +1,8 @@
+{
+    "name": "makingwaves/ezdictionary",
+    "type": "ezpublish-legacy-extension",
+    "description": "Temp desc",
+    "require": {
+        "ezsystems/ezpublish-legacy-installer": "*",
+    }
+}
