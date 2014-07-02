@@ -65,6 +65,7 @@ class CacheMechanism
      */
     private function getCacheFilename()
     {
+        $ini = \eZINI::instance( 'site.ini' );
         $timestamps = array();
         foreach( $this->parent_array as $node_id )
         {
@@ -77,11 +78,12 @@ class CacheMechanism
                 'class_filter_type' => 'include',
                 'class_filter_array' => array_keys( $this->classes ),
             ) );
-        $id = md5( join( '_', $timestamps ) . '_' . $no_of_subnodes );
 
+        $languages = $ini->variable( 'RegionalSettings', 'SiteLanguageList' );
+
+        $id = md5( join( '_', $timestamps ) . '_' . $no_of_subnodes . '_' . join( '_', $languages ) );
         $path = \eZSys::cacheDirectory() . '/';
-        $path .= \eZINI::instance( 'site.ini' )->variable( 'Cache_dictionary', 'path' );
-
+        $path .= $ini->variable( 'Cache_dictionary', 'path' );
         return "$path/$id.cache";
     }
 }
