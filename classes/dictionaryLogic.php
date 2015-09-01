@@ -129,12 +129,29 @@ class DictionaryLogic
         $dom = new \DOMDocument();
         libxml_use_internal_errors( true );
 
-        $dom->loadHTML( mb_convert_encoding( $this->operator_value, 'HTML-ENTITIES', "UTF-8" ) );
+        // Version 5.4 and up will include html/body tags etc.if we don't ask it not to
+        if ( version_compare( phpversion(), '5.4.0', '>' ) )
+        {
+            $dom->loadHTML(
+                mb_convert_encoding($this->operator_value, 'HTML-ENTITIES', "UTF-8"),
+                LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            );
+        }
+        else
+        {
+            $dom->loadHTML( mb_convert_encoding($this->operator_value, 'HTML-ENTITIES', "UTF-8") );
+        }
 
         $omit_tags = \eZINI::instance( 'ezdictionary.ini' )->variable( 'TemplateOperator', 'OmitTags' );
         $this->processBranchOfDomNodes( $dictionary_array, $dom->childNodes, $omit_tags );
+        $html = html_entity_decode( $dom->saveHTML() );
 
-        return utf8_encode( html_entity_decode( $dom->saveHTML() ) );
+        // Later versions of php use utf8 by default
+        if ( version_compare( phpversion(), '5.4.0', '<' ) )
+        {
+            $html = utf8_encode( $html );
+        }
+        return $html;
     }
 
     /**
