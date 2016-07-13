@@ -141,7 +141,13 @@ class DictionaryLogic
         {
             $html_fragment = $dom->saveHTML();
         }
-        return utf8_encode( html_entity_decode( $html_fragment ) );
+        
+        if ( version_compare( phpversion(), '5.6.0', '<' ) ) {
+            return utf8_encode( html_entity_decode( $html_fragment ) );
+        }
+        else {
+            return html_entity_decode( $html_fragment );
+        }
     }
 
     /**
